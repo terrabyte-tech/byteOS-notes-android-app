@@ -1,2 +1,3 @@
 # byteOS-notes-android-app
-Just an 8bit note taking app
+
+A simple application that is meant for taking and saving notes (locally) with our custom pixel font!
