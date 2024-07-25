@@ -2,5 +2,8 @@
 <resources>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
-<!--    <color name="green">#FF</color>-->
+    <color name="tb_green">#0A8C61</color>
+    <color name="tb_green_slighttrans">#aa0A8C61</color>
+    <color name="tb_green_verytrans">#220A8C61</color>
+    <color name="tb_dark">#333333</color>
 </resources>

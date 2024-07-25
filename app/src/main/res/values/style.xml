@@ -1,10 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="whiteText">
-        <item name="android:textColor">#ffffff</item>
+    <style name="primary_button">
+        <item name="android:textColor">@color/white</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:fontFamily">@font/wolf_console</item>
+        <item name="android:shadowColor">?attr/colorPrimary</item>
+    </style>
+    <style name="secondary_button">
+        <item name="android:textColor">?attr/colorSecondary</item>
+        <item name="android:padding">10dp</item>
+        <item name="android:fontFamily">@font/wolf_console</item>
+        <item name="android:shadowColor">?attr/colorPrimary</item>
     </style>
 
-    <style name="gfgGreenText">
-        <item name="android:textColor">#0f9d58</item>
+    <style name="text_area">
+        <item name="android:fontFamily">@font/wolf_console</item>
+        <item name="android:padding">10dp</item>
+    </style>
+    <style name="filename_label">
+        <item name="android:fontFamily">@font/wolf_console</item>
+        <item name="android:textColor">?attr/colorSecondary</item>
     </style>
 </resources>
