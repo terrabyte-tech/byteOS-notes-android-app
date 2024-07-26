@@ -1,8 +1,9 @@
 <resources>
-    <string name="app_name">byteOS Notes</string>
+    <string name="app_name" translatable="false">byteOS Notes</string>
 
     <!--buttons-->
     <string name="save_button">Save</string>
     <string name="load_button">Load</string>
+    <string name="newFile_label">New File</string>
     <string name="note_hint">Leave a note here...</string>
 </resources>
