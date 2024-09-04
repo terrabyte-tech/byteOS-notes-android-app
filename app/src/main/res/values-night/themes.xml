@@ -4,5 +4,6 @@
         <!-- Customize your dark theme here. -->
         <item name="colorPrimary">@color/tb_dark</item>
         <item name="colorSecondary">@color/white</item>
+        <item name="colorAccent">@color/tb_green</item>
     </style>
 </resources>

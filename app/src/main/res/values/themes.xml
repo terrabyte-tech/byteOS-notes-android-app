@@ -4,6 +4,9 @@
         <!-- Customize your light theme here. -->
         <item name="colorPrimary">@color/white</item>
         <item name="colorSecondary">@color/tb_dark</item>
+        <item name="colorAccent">@color/tb_green</item>
+
+<!--        <item name="alertDialogTheme">@style/PixelAlertDialogTheme</item>-->
     </style>
 
     <style name="Theme.ByteOSNotes" parent="Base.Theme.ByteOSNotes" />

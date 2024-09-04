@@ -1,15 +1,22 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:orientation="vertical"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:fontFamily="@font/wolf_console">
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="20dp"
+    android:layout_marginTop="20dp"
+    android:fontFamily="@font/pinetype_titles"
+    android:orientation="vertical">
 
     <EditText
         android:id="@+id/filename_input"
-        android:layout_width="match_parent"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:hint="Filename"
-        android:layout_marginHorizontal="20dp"/>
+        android:layout_marginHorizontal="20dp"
+        android:ellipsize="end"
+        android:fontFamily="@font/pinetype_titles"
+        android:hint="Examples: My note, Day 365, Pixel thoughts"
+        android:lineSpacingMultiplier="1.2"
+        android:maxLines="1"
+        android:textSize="14sp" />
 
 </LinearLayout>

@@ -12,6 +12,7 @@ import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.io.FileOutputStream
 import android.Manifest
+import android.app.Dialog
 import android.content.pm.PackageManager
 import android.os.Environment
 import androidx.core.app.ActivityCompat
@@ -100,13 +101,14 @@ class MainActivity : AppCompatActivity() {
 
   private fun fileNameDialog(){
     var enteredName: String
-    val builder = AlertDialog.Builder(this)
+    val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
+//    val builder = Dialog.Builder(this, R.style.AlertDialogCustom)
     val inflater = layoutInflater
     val dialogLayout = inflater.inflate(R.layout.filename_dialog_layout, null)
     val filenameText = dialogLayout.findViewById<EditText>(R.id.filename_input)
 
     with(builder){
-      setTitle("Enter note filename")
+      setTitle("Save note as...")
       setPositiveButton("OK"){dialog, which ->
         enteredName = filenameText.text.toString() + ".txt"
 

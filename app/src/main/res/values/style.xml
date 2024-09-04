@@ -6,7 +6,7 @@
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/wolf_console</item>
         <item name="android:textAlignment">center</item>
-<!--        <item name="android:shadowColor">?attr/colorPrimary</item>-->
+        <item name="android:shadowColor">@color/transparent</item>
     </style>
     <style name="secondary_button">
         <item name="android:textColor">?attr/colorSecondary</item>
@@ -14,19 +14,36 @@
         <item name="android:textSize">12sp</item>
         <item name="android:fontFamily">@font/wolf_console</item>
         <item name="android:textAlignment">center</item>
-<!--        <item name="android:shadowColor">?attr/colorPrimary</item>-->
+        <item name="android:shadowColor">@color/transparent</item>
     </style>
 
     <style name="text_area">
         <item name="android:fontFamily">@font/pinetype_titles</item>
 <!--        <item name="android:padding">20sp</item>-->
         <item name="android:textSize">14sp</item>
-        <item name="android:lineSpacingExtra">5sp</item>
+<!--        <item name="android:lineSpacingExtra">5sp</item>-->
 <!--        <item name="android:boxStrokeWidth"></item>-->
     </style>
     <style name="filename_label">
         <item name="android:fontFamily">@font/pinetype_titles</item>
         <item name="android:textColor">?attr/colorSecondary</item>
         <item name="android:textSize">20sp</item>
+    </style>
+
+    <style name="AlertDialogCustom" parent="@style/MaterialAlertDialog.Material3">
+<!--    <style name="AlertDialogCustom" parent="@android:style/Theme.Dialog">-->
+        <item name="android:fontFamily">@font/wolf_console</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:shadowColor">@color/transparent</item>
+
+<!--        <item name="android:shadowColor">#34ffac</item>-->
+        <item name="android:shadowRadius">0</item>
+
+        <item name="android:backgroundTint">?attr/colorPrimary</item>
+        <item name="android:textColor">?attr/colorSecondary</item>
+        <item name="android:radius">0dp</item>
+        <item name="android:colorAccent">@color/tb_green</item>
+
+        <item name="android:textColorHint">@color/tb_dark_slighttrans</item>
     </style>
 </resources>
