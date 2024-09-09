@@ -59,6 +59,13 @@ class MainActivity : AppCompatActivity() {
 
     load_button.setOnClickListener{
       debugI("clicked load button")
+
+//      check if there is text in the textarea; prompt that you will lose this
+
+//      select file to load
+
+//      input text content from file into textarea
+//      set filenameSet and other in-app variables
     }
 
     new_button.setOnClickListener{
@@ -102,7 +109,6 @@ class MainActivity : AppCompatActivity() {
   private fun fileNameDialog(){
     var enteredName: String
     val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
-//    val builder = Dialog.Builder(this, R.style.AlertDialogCustom)
     val inflater = layoutInflater
     val dialogLayout = inflater.inflate(R.layout.filename_dialog_layout, null)
     val filenameText = dialogLayout.findViewById<EditText>(R.id.filename_input)
@@ -123,7 +129,7 @@ class MainActivity : AppCompatActivity() {
       }
       setNegativeButton("Cancel"){dialog, which ->
         debugI("Not saved; Canceled save process")
-        createToast("Not saved")
+        createToast("Canceled saved")
       }
       setView(dialogLayout)
       show()
@@ -166,14 +172,39 @@ class MainActivity : AppCompatActivity() {
     givenFilename = txt
     filename_label.text = txt
   }
+
 //  create new note; reset everything
   private fun newNote(){
+    if(note_txtarea.getText().toString().equals("") && !filenameSet){
+      clearNote()
+    }else{
+      discardingPrompt()
+    }
+  }
+//  discarding changes
+  private fun discardingPrompt(){
+  val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
+
+  with(builder){
+    setTitle("Discard changes?")
+    setPositiveButton("OK"){dialog, which ->
+      debugI("discard changes")
+      clearNote()
+    }
+    setNegativeButton("Cancel"){dialog, which ->
+      debugI("cancel discard")
+    }
+    show()
+  }
+  }
+//  clear note
+  private fun clearNote(){
     filenameSet = false
     givenFilename = defaultFilename
     filename_label.text = getString(R.string.newFile_label)
     note_txtarea.getText().clear()
+    createToast("New note")
   }
-
 
   //making toast messages
   private fun Context.createToast(text: CharSequence, duration: Int = Toast.LENGTH_SHORT){
