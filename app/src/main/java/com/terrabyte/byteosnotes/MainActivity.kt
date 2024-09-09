@@ -60,9 +60,12 @@ class MainActivity : AppCompatActivity() {
     load_button.setOnClickListener{
       debugI("clicked load button")
 
-//      check if there is text in the textarea; prompt that you will lose this
-
-//      select file to load
+// check if there is text in the textarea; prompt that you will lose this
+      if(note_txtarea.getText().toString().equals("") && !filenameSet){
+        loadNote()
+      }else{
+        discardingPrompt{loadNote()}
+      }
 
 //      input text content from file into textarea
 //      set filenameSet and other in-app variables
@@ -167,7 +170,7 @@ class MainActivity : AppCompatActivity() {
 
 //  set the filename across the app
   private fun setFileName(txt: String){
-    debugI("entered filename is " + txt)
+    debugI("entered filename is $txt")
     filenameSet = true
     givenFilename = txt
     filename_label.text = txt
@@ -175,21 +178,21 @@ class MainActivity : AppCompatActivity() {
 
 //  create new note; reset everything
   private fun newNote(){
-    if(note_txtarea.getText().toString().equals("") && !filenameSet){
+    if(note_txtarea.text.toString() == "" && !filenameSet){
       clearNote()
     }else{
-      discardingPrompt()
+      discardingPrompt{clearNote()}
     }
   }
 //  discarding changes
-  private fun discardingPrompt(){
+  private fun discardingPrompt(func: () -> Unit){
   val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
 
   with(builder){
     setTitle("Discard changes?")
     setPositiveButton("OK"){dialog, which ->
       debugI("discard changes")
-      clearNote()
+      func()
     }
     setNegativeButton("Cancel"){dialog, which ->
       debugI("cancel discard")
@@ -202,8 +205,13 @@ class MainActivity : AppCompatActivity() {
     filenameSet = false
     givenFilename = defaultFilename
     filename_label.text = getString(R.string.newFile_label)
-    note_txtarea.getText().clear()
+    note_txtarea.text.clear()
     createToast("New note")
+  }
+
+//  load note
+  private fun loadNote(){
+    createToast("loading now!")
   }
 
   //making toast messages
