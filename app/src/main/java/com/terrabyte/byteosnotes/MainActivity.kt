@@ -1,27 +1,32 @@
 package com.terrabyte.byteosnotes
 
+import android.Manifest
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.OpenableColumns
+import android.util.Log
 import android.widget.Button
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.ActivityResultLauncher
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import java.io.File
 import java.io.FileOutputStream
-import android.Manifest
-import android.app.Dialog
-import android.content.pm.PackageManager
-import android.os.Environment
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import java.io.IOException
-import android.util.Log
-import android.view.LayoutInflater
-import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
+
 
 class MainActivity : AppCompatActivity() {
   private lateinit var note_txtarea: EditText
@@ -29,12 +34,18 @@ class MainActivity : AppCompatActivity() {
   private lateinit var new_button: Button
   private lateinit var save_button: Button
   private lateinit var filename_label: TextView
+  private var previousContent = ""
   private var defaultFilename = "note.txt"
   private var givenFilename = defaultFilename
   private var filenameSet = false
+  private var fileUri: Uri? = null
+  private lateinit var openDocumentLauncher: ActivityResultLauncher<Intent>
 
   companion object {
+    //  permission to access storage
     private const val REQUEST_CODE = 100
+    //  permission to open docs
+    const val REQUEST_CODE_OPEN_DOCUMENT = 1
   }
 
   override fun onCreate(savedInstanceState: Bundle?) {
@@ -42,38 +53,84 @@ class MainActivity : AppCompatActivity() {
     enableEdgeToEdge()
     setContentView(R.layout.activity_main)
 
+//    app elements
     note_txtarea = findViewById(R.id.note_txtarea)
     filename_label = findViewById(R.id.filename_label)
     load_button = findViewById(R.id.load_button)
     save_button = findViewById(R.id.save_button)
     new_button = findViewById(R.id.new_button)
 
+//    loading note variables
+    openDocumentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+      if (result.resultCode == Activity.RESULT_OK) {
+        result.data?.data?.also { uri ->
+          fileUri = uri
+          getLoadedFileName(fileUri!!)
+
+          contentResolver.openInputStream(uri)?.bufferedReader().use { reader ->
+            val fileContent = reader?.readText()
+
+//            set note data
+            previousContent = fileContent.toString()
+            note_txtarea.setText(fileContent.toString())
+          }
+        }
+      }
+    }
+
+//    click listeners
     save_button.setOnClickListener{
-      if (filenameSet != true){
+      debugI("save button clicked")
+
+      if (!filenameSet) {
         fileNameDialog()
       }else{
-        val fileContent = note_txtarea.text.toString()
-        writeToFile(givenFilename, fileContent)
+        var isModified = checkContentModified()
+
+        if(isModified){
+          val fileContent = note_txtarea.text.toString()
+//          debugI(fileUri.toString())
+
+          //  if URI is available
+          if(fileUri != null){
+//            debugI("URI is not null")
+            fileUri?.let { uri ->
+              contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
+                writer?.write(fileContent)
+                createToast("$givenFilename saved")
+                setNoteData(givenFilename)
+              }
+            }
+            //  if note from scratch
+          }else{
+            writeToFile(givenFilename, fileContent)
+          }
+        }else{
+          createToast("Nothing changed")
+        }
       }
     }
 
     load_button.setOnClickListener{
-      debugI("clicked load button")
+      debugI("load button clicked")
+      var isModified = checkContentModified()
 
-// check if there is text in the textarea; prompt that you will lose this
-      if(note_txtarea.getText().toString().equals("") && !filenameSet){
-        loadNote()
-      }else{
+      if(isModified){
         discardingPrompt{loadNote()}
+      }else{
+        loadNote()
       }
-
-//      input text content from file into textarea
-//      set filenameSet and other in-app variables
     }
 
     new_button.setOnClickListener{
-      debugI("clicked new note button")
-      newNote()
+      debugI("new button clicked")
+      var isModified = checkContentModified()
+
+      if(isModified){
+        discardingPrompt{clearNote()}
+      }else{
+        clearNote()
+      }
     }
 
     ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
@@ -83,6 +140,8 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+
+// /////////////////////////////////////////////////////////////////////////////////////
 //  writing functions
   private fun isExternalStorageWritable(): Boolean {
 //    if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED) {
@@ -119,13 +178,14 @@ class MainActivity : AppCompatActivity() {
     with(builder){
       setTitle("Save note as...")
       setPositiveButton("OK"){dialog, which ->
+        debugI("clicked OK button")
         enteredName = filenameText.text.toString() + ".txt"
 
         if (enteredName == ".txt"){
-          debugI("Nothing entered, default filename is " + defaultFilename)
           enteredName = defaultFilename
         }
-        setFileName(enteredName)
+
+        setNoteData(enteredName)
 
         val fileContent = note_txtarea.text.toString()
         writeToFile(enteredName, fileContent)
@@ -138,16 +198,18 @@ class MainActivity : AppCompatActivity() {
       show()
     }
   }
+
   private fun writeToFile(fileName: String, fileContent: String) {
     if (isExternalStorageWritable()) {
-//      check if Documents directory exists for notes
+//      check if file has been loaded in (go off of URI location)
+      //  check if Documents directory exists for notes
       val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
       if (!documentsDir.exists()) {
         documentsDir.mkdirs()
         debugI("made /documents directory")
       }
 
-//      check if file exists
+      //  check if file exists
       val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), fileName)
       try {
         if (!file.exists()) {
@@ -158,7 +220,7 @@ class MainActivity : AppCompatActivity() {
         val fileOutputStream = FileOutputStream(file)
         fileOutputStream.write(fileContent.toByteArray())
         fileOutputStream.close()
-        createToast(fileName + " saved to Documents")
+        createToast("$fileName saved to Documents")
       } catch (e: IOException) {
         debugE(e)
         createToast("Failed to save")
@@ -168,52 +230,83 @@ class MainActivity : AppCompatActivity() {
     }
   }
 
+
+// /////////////////////////////////////////////////////////////////////////////////////
+//  loading functions
+  private fun loadNote(){
+    val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+      addCategory(Intent.CATEGORY_OPENABLE)
+      type = "text/plain"
+    }
+    openDocumentLauncher.launch(intent)
+  }
+
+  fun getLoadedFileName(uri: Uri){
+    var loadedFileName: String? = null
+    val cursor = contentResolver.query(uri, null, null, null, null)
+    cursor?.use {
+      if (it.moveToFirst()) {
+        val displayNameIndex = it.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+        if (displayNameIndex != -1) {
+          loadedFileName = it.getString(displayNameIndex)
+        }
+      }
+    }
+
+    setNoteData(loadedFileName.toString())
+  }
+
+
+// /////////////////////////////////////////////////////////////////////////////////////
+//  helper functions
 //  set the filename across the app
-  private fun setFileName(txt: String){
-    debugI("entered filename is $txt")
+  private fun setNoteData(name: String){
+  //  debugI("entered filename is $txt")
     filenameSet = true
-    givenFilename = txt
-    filename_label.text = txt
+    givenFilename = name
+    filename_label.text = name
+    previousContent = note_txtarea.text.toString()
+//    debugI(previousContent)
   }
 
-//  create new note; reset everything
-  private fun newNote(){
-    if(note_txtarea.text.toString() == "" && !filenameSet){
-      clearNote()
+  //  check if note content has been changed
+  private fun checkContentModified(): Boolean {
+    val modifiedBool: Boolean
+//    is current content different from what the content was when last triggered
+    if(note_txtarea.text.toString() != previousContent){
+      modifiedBool = true
     }else{
-      discardingPrompt{clearNote()}
+      modifiedBool = false
     }
+    debugI("modified? calc to $modifiedBool")
+    return modifiedBool
   }
-//  discarding changes
+  //  discarding changes
   private fun discardingPrompt(func: () -> Unit){
-  val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
+    val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
 
-  with(builder){
-    setTitle("Discard changes?")
-    setPositiveButton("OK"){dialog, which ->
-      debugI("discard changes")
-      func()
+    with(builder){
+      setTitle("Discard changes?")
+      setPositiveButton("OK"){dialog, which ->
+//        debugI("discard changes")
+        func()
+      }
+      setNegativeButton("Cancel"){dialog, which ->
+//        debugI("cancel discard")
+      }
+      show()
     }
-    setNegativeButton("Cancel"){dialog, which ->
-      debugI("cancel discard")
-    }
-    show()
   }
-  }
-//  clear note
+  //  clear note
   private fun clearNote(){
     filenameSet = false
     givenFilename = defaultFilename
     filename_label.text = getString(R.string.newFile_label)
+    previousContent = ""
     note_txtarea.text.clear()
+    fileUri = null
     createToast("New note")
   }
-
-//  load note
-  private fun loadNote(){
-    createToast("loading now!")
-  }
-
   //making toast messages
   private fun Context.createToast(text: CharSequence, duration: Int = Toast.LENGTH_SHORT){
     Toast.makeText(this, text, duration).show()
