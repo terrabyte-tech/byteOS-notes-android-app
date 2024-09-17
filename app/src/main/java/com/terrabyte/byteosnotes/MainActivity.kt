@@ -261,7 +261,7 @@ class MainActivity : AppCompatActivity() {
 //  helper functions
 //  set the filename across the app
   private fun setNoteData(name: String){
-  //  debugI("entered filename is $txt")
+//    debugI("entered filename is $name")
     filenameSet = true
     givenFilename = name
     filename_label.text = name
