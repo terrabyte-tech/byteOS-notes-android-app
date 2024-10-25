@@ -13,7 +13,7 @@
         android:id="@+id/filename_label"
         style="@style/filename_label"
         android:layout_width="0dp"
-        android:layout_height="20sp"
+        android:layout_height="36sp"
         android:layout_marginEnd="10dp"
         android:layout_marginStart="10dp"
         android:layout_marginTop="20dp"
