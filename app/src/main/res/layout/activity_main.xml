@@ -26,27 +26,36 @@
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <EditText
-        android:id="@+id/note_txtarea"
-        style="@style/text_area"
+    <ScrollView
+        android:id="@+id/note_txtarea_sv"
         android:layout_width="0dp"
         android:layout_height="0dp"
         android:layout_marginBottom="20dp"
         android:layout_marginEnd="10dp"
         android:layout_marginStart="10dp"
         android:layout_marginTop="20dp"
-        android:backgroundTint="?attr/colorPrimary"
-        android:ems="10"
         android:gravity="start|top"
-        android:hint="@string/note_hint"
-        android:inputType="textMultiLine"
-        android:lineSpacingMultiplier="1.2"
-        android:textColor="?attr/colorSecondary"
-        android:textColorHint="@color/tb_dark_slighttrans"
         app:layout_constraintBottom_toTopOf="@+id/save_button"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/filename_label" />
+        app:layout_constraintTop_toBottomOf="@+id/filename_label">
+
+        <EditText
+            android:id="@+id/note_txtarea"
+            style="@style/text_area"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:backgroundTint="?attr/colorPrimary"
+            android:ems="10"
+            android:hint="@string/note_hint"
+            android:inputType="textMultiLine"
+            android:lineSpacingMultiplier="1.2"
+            android:textColor="?attr/colorSecondary"
+            android:textColorHint="@color/tb_dark_slighttrans" />
+
+    </ScrollView>
+
+
 
     <Button
         android:id="@+id/save_button"
@@ -60,7 +69,7 @@
         android:visibility="visible"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/note_txtarea" />
+        app:layout_constraintTop_toBottomOf="@+id/note_txtarea_sv" />
 
     <Button
         android:id="@+id/load_button"
