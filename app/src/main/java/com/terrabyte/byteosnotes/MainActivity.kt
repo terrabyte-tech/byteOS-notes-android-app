@@ -1,13 +1,10 @@
 package com.terrabyte.byteosnotes
 
-import android.Manifest
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.provider.OpenableColumns
 import android.util.Log
 import android.widget.Button
@@ -19,12 +16,9 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import java.io.File
-import java.io.FileOutputStream
+import android.view.View
 import java.io.IOException
 
 
@@ -39,14 +33,9 @@ class MainActivity : AppCompatActivity() {
   private var givenFilename = defaultFilename
   private var filenameSet = false
   private var fileUri: Uri? = null
+  private lateinit var createDocumentLauncher: ActivityResultLauncher<Intent>
   private lateinit var openDocumentLauncher: ActivityResultLauncher<Intent>
 
-  companion object {
-    //  permission to access storage
-    private const val REQUEST_CODE = 100
-    //  permission to open docs
-    const val REQUEST_CODE_OPEN_DOCUMENT = 1
-  }
 
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
@@ -67,46 +56,61 @@ class MainActivity : AppCompatActivity() {
           fileUri = uri
           getLoadedFileName(fileUri!!)
 
-          contentResolver.openInputStream(uri)?.bufferedReader().use { reader ->
-            val fileContent = reader?.readText()
+          try {
+            contentResolver.openInputStream(uri)?.bufferedReader().use { reader ->
+              val fileContent = reader?.readText()
 
 //            set note data
-            previousContent = fileContent.toString()
-            note_txtarea.setText(fileContent.toString())
+              previousContent = fileContent.toString()
+              note_txtarea.setText(fileContent.toString())
+            }
+          } catch (e: IOException) {
+            Log.e("MainActivity", "Error reading file", e)
+            createToast(getString(R.string.file_read_error, e.message ?: getString(R.string.unknown_error)))
           }
         }
       }
     }
 
 //    click listeners
-    save_button.setOnClickListener{
+    save_button.setOnClickListener {
       debugI("save button clicked")
 
       if (!filenameSet) {
         fileNameDialog()
-      }else{
-        var isModified = checkContentModified()
+      } else {
+        val isModified = checkContentModified()
 
-        if(isModified){
+        if (isModified) {
           val fileContent = note_txtarea.text.toString()
-//          debugI(fileUri.toString())
 
-          //  if URI is available
-          if(fileUri != null){
-//            debugI("URI is not null")
+          if (fileUri != null) {
             fileUri?.let { uri ->
-              contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
-                writer?.write(fileContent)
-                createToast("$givenFilename saved")
-                setNoteData(givenFilename)
+
+              try {
+                contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
+                  writer?.write(fileContent)
+//                  createToast("$givenFilename saved")
+                  createToast(getString(R.string.file_saved_confirm, givenFilename))
+
+                  setNoteData(givenFilename)
+                }
+              } catch (e: IOException) {
+                Log.e("MainActivity", "Error writing file", e)
+                createToast(getString(R.string.file_write_error, e.message ?: getString(R.string.unknown_error)))
               }
             }
-            //  if note from scratch
-          }else{
-            writeToFile(givenFilename, fileContent)
+          } else {
+            // Use SAF to create a new file
+            val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+              addCategory(Intent.CATEGORY_OPENABLE)
+              type = "text/plain"
+              putExtra(Intent.EXTRA_TITLE, givenFilename)
+            }
+            createDocumentLauncher.launch(intent)
           }
-        }else{
-          createToast("Nothing changed")
+        } else {
+          createToast(getString(R.string.nothing_changed_error))
         }
       }
     }
@@ -138,35 +142,25 @@ class MainActivity : AppCompatActivity() {
       v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
       insets
     }
+    createDocumentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+      if (result.resultCode == Activity.RESULT_OK) {
+        result.data?.data?.also { uri ->
+          this.fileUri = uri
+          val fileContent = note_txtarea.text.toString()
+          contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
+            writer?.write(fileContent)
+            createToast(getString(R.string.file_saved_confirm, givenFilename))
+
+            setNoteData(givenFilename)
+          }
+        }
+      }
+    }
   }
 
 
 // /////////////////////////////////////////////////////////////////////////////////////
 //  writing functions
-  private fun isExternalStorageWritable(): Boolean {
-//    if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED) {
-//      debugI("external storage is writeable")
-//    }
-    return Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED
-  }
-
-  private fun requestStoragePermissions() {
-    if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED) {
-      debugI("storage permissions granted")
-      ActivityCompat.requestPermissions(this, arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE), REQUEST_CODE)
-    }
-  }
-
-  override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
-    super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-    if (requestCode == REQUEST_CODE) {
-      if ((grantResults.isNotEmpty() && grantResults[0] == PackageManager.PERMISSION_GRANTED)) {
-        debugI("Android permissions granted")
-      } else {
-        debugI("Android permissions denied")
-      }
-    }
-  }
 
   private fun fileNameDialog(){
     var enteredName: String
@@ -176,59 +170,29 @@ class MainActivity : AppCompatActivity() {
     val filenameText = dialogLayout.findViewById<EditText>(R.id.filename_input)
 
     with(builder){
-      setTitle("Save note as...")
-      setPositiveButton("OK"){dialog, which ->
-        debugI("clicked OK button")
+      setTitle(getString(R.string.dialog_title_save_note_as))
+      setPositiveButton(getString(R.string.ok_button)){dialog, which ->
         enteredName = filenameText.text.toString() + ".txt"
-
         if (enteredName == ".txt"){
           enteredName = defaultFilename
         }
-
         setNoteData(enteredName)
-
-        val fileContent = note_txtarea.text.toString()
-        writeToFile(enteredName, fileContent)
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+          addCategory(Intent.CATEGORY_OPENABLE)
+          type = "text/plain"
+          putExtra(Intent.EXTRA_TITLE, enteredName)
+        }
+        createDocumentLauncher.launch(intent)
       }
-      setNegativeButton("Cancel"){dialog, which ->
+      setNegativeButton(getString(R.string.cancel_button)){dialog, which ->
         debugI("Not saved; Canceled save process")
-        createToast("Canceled saved")
+        createToast(getString(R.string.canceled_save_error))
       }
       setView(dialogLayout)
       show()
     }
   }
 
-  private fun writeToFile(fileName: String, fileContent: String) {
-    if (isExternalStorageWritable()) {
-//      check if file has been loaded in (go off of URI location)
-      //  check if Documents directory exists for notes
-      val documentsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS)
-      if (!documentsDir.exists()) {
-        documentsDir.mkdirs()
-        debugI("made /documents directory")
-      }
-
-      //  check if file exists
-      val file = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), fileName)
-      try {
-        if (!file.exists()) {
-          debugI("file doesn't exist, creating...")
-          file.createNewFile()
-        }
-
-        val fileOutputStream = FileOutputStream(file)
-        fileOutputStream.write(fileContent.toByteArray())
-        fileOutputStream.close()
-        createToast("$fileName saved to Documents")
-      } catch (e: IOException) {
-        debugE(e)
-        createToast("Failed to save")
-      }
-    } else {
-      createToast("Insufficient storage")
-    }
-  }
 
 
 // /////////////////////////////////////////////////////////////////////////////////////
@@ -253,7 +217,11 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
-    setNoteData(loadedFileName.toString())
+    if (!loadedFileName.isNullOrBlank()) {
+      setNoteData(loadedFileName!!)
+    } else {
+      setNoteData(defaultFilename)
+    }
   }
 
 
@@ -279,6 +247,10 @@ class MainActivity : AppCompatActivity() {
       modifiedBool = false
     }
     debugI("modified? calc to $modifiedBool")
+
+    val asterisk = findViewById<TextView>(R.id.modified_asterisk)
+    asterisk.visibility = if (modifiedBool) View.VISIBLE else View.GONE
+
     return modifiedBool
   }
   //  discarding changes
@@ -286,13 +258,11 @@ class MainActivity : AppCompatActivity() {
     val builder = AlertDialog.Builder(this, R.style.AlertDialogCustom)
 
     with(builder){
-      setTitle("Discard changes?")
-      setPositiveButton("OK"){dialog, which ->
-//        debugI("discard changes")
+      setTitle(getString(R.string.dialog_title_discard_changes))
+      setPositiveButton(getString(R.string.ok_button)){dialog, which ->
         func()
       }
-      setNegativeButton("Cancel"){dialog, which ->
-//        debugI("cancel discard")
+      setNegativeButton(getString(R.string.cancel_button)){dialog, which ->
       }
       show()
     }
@@ -305,7 +275,7 @@ class MainActivity : AppCompatActivity() {
     previousContent = ""
     note_txtarea.text.clear()
     fileUri = null
-    createToast("New note")
+    createToast(getString(R.string.new_note_text))
   }
   //making toast messages
   private fun Context.createToast(text: CharSequence, duration: Int = Toast.LENGTH_SHORT){

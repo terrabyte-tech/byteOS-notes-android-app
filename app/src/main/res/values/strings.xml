@@ -5,6 +5,27 @@
     <string name="save_button">Save</string>
     <string name="load_button">Load</string>
     <string name="new_button">New</string>
+    <string name="ok_button">OK</string>
+    <string name="cancel_button">Cancel</string>
+
+    <!--labels-->
     <string name="newFile_label">New Note</string>
-    <string name="note_hint">Leave a note here...</string>
+    <string name="new_note_text">New note</string>
+
+    <!--dialogs-->
+    <string name="dialog_title_save_note_as">Save note as…</string>
+    <string name="dialog_title_discard_changes">Discard changes?</string>
+
+    <!--placeholders-->
+    <string name="note_hint">Leave a note here…</string>
+
+<!--    errors/toasts-->
+    <string name="no_file_selected_error">No file selected</string>
+    <string name="file_saved_confirm">%1$s saved</string>
+    <string name="file_read_error">Error reading file: %1$s</string>
+    <string name="file_write_error">Error writing file: %1$s</string>
+    <string name="canceled_save_error">Canceled save</string>">
+    <string name="note_not_saved_error">Note not</string>">
+    <string name="unknown_error">Unknown error</string>
+    <string name="nothing_changed_error">Nothing changed</string>
 </resources>
