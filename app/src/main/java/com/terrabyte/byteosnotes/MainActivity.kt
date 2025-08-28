@@ -20,6 +20,8 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import android.view.View
 import java.io.IOException
+import android.text.Editable
+import android.text.TextWatcher
 
 
 class MainActivity : AppCompatActivity() {
@@ -58,11 +60,16 @@ class MainActivity : AppCompatActivity() {
 
           try {
             contentResolver.openInputStream(uri)?.bufferedReader().use { reader ->
-              val fileContent = reader?.readText()
+              val fileContent = reader?.readText() ?: ""
 
-//            set note data
-              previousContent = fileContent.toString()
-              note_txtarea.setText(fileContent.toString())
+              // 1. Set text area with loaded content
+              note_txtarea.setText(fileContent)
+              // 2. Update previousContent to match exactly what was loaded
+              previousContent = fileContent
+              // 3. Update filename related data (this will also call setNoteData which updates previousContent again, but it will be to the same fileContent)
+              getLoadedFileName(fileUri!!)
+              // 4. Now that everything is in a consistent "just loaded" state, update asterisk
+              updateAsteriskVisibility()
             }
           } catch (e: IOException) {
             Log.e("MainActivity", "Error reading file", e)
@@ -72,6 +79,18 @@ class MainActivity : AppCompatActivity() {
       }
     }
 
+//    text update listener
+    note_txtarea.addTextChangedListener(object : TextWatcher {
+      override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+
+      override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+//        checkContentModified()
+        updateAsteriskVisibility()
+      }
+
+      override fun afterTextChanged(s: Editable?) {}
+    })
+
 //    click listeners
     save_button.setOnClickListener {
       debugI("save button clicked")
@@ -79,9 +98,9 @@ class MainActivity : AppCompatActivity() {
       if (!filenameSet) {
         fileNameDialog()
       } else {
-        val isModified = checkContentModified()
+//        val isModified = checkContentModified()
 
-        if (isModified) {
+        if (isContentActuallyModified()) {
           val fileContent = note_txtarea.text.toString()
 
           if (fileUri != null) {
@@ -90,10 +109,10 @@ class MainActivity : AppCompatActivity() {
               try {
                 contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
                   writer?.write(fileContent)
-//                  createToast("$givenFilename saved")
                   createToast(getString(R.string.file_saved_confirm, givenFilename))
-
                   setNoteData(givenFilename)
+//                  checkContentModified()
+                  updateAsteriskVisibility()
                 }
               } catch (e: IOException) {
                 Log.e("MainActivity", "Error writing file", e)
@@ -111,28 +130,27 @@ class MainActivity : AppCompatActivity() {
           }
         } else {
           createToast(getString(R.string.nothing_changed_error))
+          updateAsteriskVisibility()
         }
       }
     }
 
     load_button.setOnClickListener{
       debugI("load button clicked")
-      var isModified = checkContentModified()
 
-      if(isModified){
-        discardingPrompt{loadNote()}
-      }else{
+      if (isContentActuallyModified()) {
+        discardingPrompt { loadNote() }
+      } else {
         loadNote()
       }
     }
 
     new_button.setOnClickListener{
       debugI("new button clicked")
-      var isModified = checkContentModified()
 
-      if(isModified){
-        discardingPrompt{clearNote()}
-      }else{
+      if (isContentActuallyModified()) {
+        discardingPrompt { clearNote() }
+      } else {
         clearNote()
       }
     }
@@ -147,12 +165,20 @@ class MainActivity : AppCompatActivity() {
         result.data?.data?.also { uri ->
           this.fileUri = uri
           val fileContent = note_txtarea.text.toString()
-          contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
-            writer?.write(fileContent)
-            createToast(getString(R.string.file_saved_confirm, givenFilename))
+          try{
+            contentResolver.openOutputStream(uri)?.bufferedWriter().use { writer ->
+              writer?.write(fileContent)
+              createToast(getString(R.string.file_saved_confirm, givenFilename))
 
-            setNoteData(givenFilename)
+              setNoteData(givenFilename)
+//              checkContentModified()
+              updateAsteriskVisibility()
+            }
+          } catch (e: IOException) {
+            createToast(getString(R.string.file_write_error, e.message ?: getString(R.string.unknown_error)))
           }
+
+
         }
       }
     }
@@ -234,7 +260,7 @@ class MainActivity : AppCompatActivity() {
     givenFilename = name
     filename_label.text = name
     previousContent = note_txtarea.text.toString()
-//    debugI(previousContent)
+  debugI("setNoteData: previousContent set to '${previousContent}' (filename: $name)")
   }
 
   //  check if note content has been changed
@@ -252,6 +278,17 @@ class MainActivity : AppCompatActivity() {
     asterisk.visibility = if (modifiedBool) View.VISIBLE else View.GONE
 
     return modifiedBool
+  }
+  private fun isContentActuallyModified(): Boolean {
+    val currentText = note_txtarea.text.toString()
+    val isModified = currentText != previousContent
+
+    return isModified
+  }
+  private fun updateAsteriskVisibility() {
+    val currentlyModified = isContentActuallyModified()
+    val asterisk = findViewById<TextView>(R.id.modified_asterisk)
+    asterisk.visibility = if (currentlyModified) View.VISIBLE else View.INVISIBLE
   }
   //  discarding changes
   private fun discardingPrompt(func: () -> Unit){

@@ -26,6 +26,9 @@
         <item name="android:textColor">?attr/colorSecondary</item>
         <item name="android:textSize">20sp</item>
     </style>
+    <style name="modified_asterisk_label">
+        <item name="android:fontFamily">@font/pinetype_titles</item>
+    </style>
 
 <!--    full size modal?-->
 <!--    <style name="AlertDialogCustom" parent="@style/MaterialAlertDialog.Material3">-->
