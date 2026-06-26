@@ -25,6 +25,14 @@ import android.text.TextWatcher
 
 
 class MainActivity : AppCompatActivity() {
+
+  // added auto save variabels
+  private var autosaveRunnable: Runnable? = null
+  private val autosaveDelay = 800L
+  private val handler = android.os.Handler(android.os.Looper.getMainLooper()) 
+
+
+
   private lateinit var note_txtarea: EditText
   private lateinit var load_button: Button
   private lateinit var new_button: Button
@@ -88,7 +96,16 @@ class MainActivity : AppCompatActivity() {
         updateAsteriskVisibility()
       }
 
-      override fun afterTextChanged(s: Editable?) {}
+      override fun afterTextChanged(s: Editable?) {
+        //Added autosave
+        autosaveRunnable?.let { handler.removeCallbacks(it) }
+
+        autosaveRunnable = Runnable {
+        autosaveNote()
+        }
+
+        handler.postDelayed(autosaveRunnable!!, autosaveDelay)
+      }
     })
 
 //    click listeners
@@ -325,5 +342,24 @@ class MainActivity : AppCompatActivity() {
   }
   private fun debugE(msg: Exception){
     Log.w("System.err", msg)
+  }
+  //ADDED autosaveNotes - andy 
+  private fun autosaveNote() {
+    val fileContent = note_txtarea.text.toString()
+
+    if (fileUri != null && fileContent != previousContent) {
+        try {
+            contentResolver.openOutputStream(fileUri!!)?.bufferedWriter().use { writer ->
+                writer?.write(fileContent)
+            }
+            previousContent = fileContent
+            updateAsteriskVisibility()
+
+            debugI("Autosaved note")
+
+        } catch (e: IOException) {
+            Log.e("MainActivity", "Autosave failed", e)
+        }
+    }
   }
 }
