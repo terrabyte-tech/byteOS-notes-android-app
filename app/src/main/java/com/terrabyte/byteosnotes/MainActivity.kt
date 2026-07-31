@@ -16,15 +16,31 @@ import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.os.BundleCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import android.view.View
 import java.io.IOException
 import android.text.Editable
 import android.text.TextWatcher
+import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
+  companion object {
+    private const val STATE_NOTE_TEXT = "noteText"
+    private const val STATE_GIVEN_FILENAME = "givenFilename"
+    private const val STATE_PREVIOUS_CONTENT = "previousContent"
+    private const val STATE_FILENAME_SET = "filenameSet"
+    private const val STATE_FILE_URI = "fileUri"
+    private const val SAVING_BUTTON_ALPHA = 0.6f
+  }
+
+  private var autosaveRunnable: Runnable? = null
+  private val autosaveDelay = 800L
+  private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+  private val autosaveExecutor = Executors.newSingleThreadExecutor()
+
   private lateinit var note_txtarea: EditText
   private lateinit var load_button: Button
   private lateinit var new_button: Button
@@ -50,6 +66,18 @@ class MainActivity : AppCompatActivity() {
     load_button = findViewById(R.id.load_button)
     save_button = findViewById(R.id.save_button)
     new_button = findViewById(R.id.new_button)
+
+//    restore note state if the Activity was recreated (e.g. backgrounded and reclaimed by the system)
+    if (savedInstanceState != null) {
+      givenFilename = savedInstanceState.getString(STATE_GIVEN_FILENAME, defaultFilename)
+      previousContent = savedInstanceState.getString(STATE_PREVIOUS_CONTENT, "")
+      filenameSet = savedInstanceState.getBoolean(STATE_FILENAME_SET, false)
+      fileUri = BundleCompat.getParcelable(savedInstanceState, STATE_FILE_URI, Uri::class.java)
+
+      note_txtarea.setText(savedInstanceState.getString(STATE_NOTE_TEXT, ""))
+      filename_label.text = if (filenameSet) givenFilename else getString(R.string.newFile_label)
+      updateAsteriskVisibility()
+    }
 
 //    loading note variables
     openDocumentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -88,7 +116,15 @@ class MainActivity : AppCompatActivity() {
         updateAsteriskVisibility()
       }
 
-      override fun afterTextChanged(s: Editable?) {}
+      override fun afterTextChanged(s: Editable?) {
+        autosaveRunnable?.let { handler.removeCallbacks(it) }
+
+        autosaveRunnable = Runnable {
+        autosaveNote()
+        }
+
+        handler.postDelayed(autosaveRunnable!!, autosaveDelay)
+      }
     })
 
 //    click listeners
@@ -157,7 +193,9 @@ class MainActivity : AppCompatActivity() {
 
     ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
       val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
-      v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom)
+      val keyboard = insets.getInsets(WindowInsetsCompat.Type.ime())
+      // bottom padding needs to clear whichever is taller: the nav bar, or the on-screen keyboard
+      v.setPadding(systemBars.left, systemBars.top, systemBars.right, maxOf(systemBars.bottom, keyboard.bottom))
       insets
     }
     createDocumentLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -182,6 +220,23 @@ class MainActivity : AppCompatActivity() {
         }
       }
     }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    // cancel any pending debounced autosave so it can't fire against a dead Activity,
+    // and stop accepting new autosave work
+    autosaveRunnable?.let { handler.removeCallbacks(it) }
+    autosaveExecutor.shutdown()
+  }
+
+  override fun onSaveInstanceState(outState: Bundle) {
+    super.onSaveInstanceState(outState)
+    outState.putString(STATE_NOTE_TEXT, note_txtarea.text.toString())
+    outState.putString(STATE_GIVEN_FILENAME, givenFilename)
+    outState.putString(STATE_PREVIOUS_CONTENT, previousContent)
+    outState.putBoolean(STATE_FILENAME_SET, filenameSet)
+    outState.putParcelable(STATE_FILE_URI, fileUri)
   }
 
 
@@ -325,5 +380,39 @@ class MainActivity : AppCompatActivity() {
   }
   private fun debugE(msg: Exception){
     Log.w("System.err", msg)
+  }
+  //  runs the actual write on a background thread so a slow SAF provider (cloud-backed
+  //  documents, etc.) can't stall the UI thread every time the debounce timer fires
+  private fun autosaveNote() {
+    val fileContent = note_txtarea.text.toString()
+    val uriToSave = fileUri
+
+    if (uriToSave != null && fileContent != previousContent) {
+      // disabled (no visible text/opacity change - that was flashing distractingly on fast
+      // saves) so a manual tap can't open a second concurrent write to the same file while
+      // the autosave write is still in flight
+      save_button.isEnabled = false
+
+      autosaveExecutor.execute {
+        try {
+          contentResolver.openOutputStream(uriToSave)?.bufferedWriter().use { writer ->
+            writer?.write(fileContent)
+          }
+          handler.post {
+            previousContent = fileContent
+            updateAsteriskVisibility()
+            resetSaveButton()
+            debugI("Autosaved note")
+          }
+        } catch (e: IOException) {
+          Log.e("MainActivity", "Autosave failed", e)
+          handler.post { resetSaveButton() }
+        }
+      }
+    }
+  }
+
+  private fun resetSaveButton() {
+    save_button.isEnabled = true
   }
 }
