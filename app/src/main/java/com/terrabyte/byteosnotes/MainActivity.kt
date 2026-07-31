@@ -33,6 +33,7 @@ class MainActivity : AppCompatActivity() {
     private const val STATE_PREVIOUS_CONTENT = "previousContent"
     private const val STATE_FILENAME_SET = "filenameSet"
     private const val STATE_FILE_URI = "fileUri"
+    private const val SAVING_BUTTON_ALPHA = 0.6f
   }
 
   private var autosaveRunnable: Runnable? = null
@@ -387,6 +388,11 @@ class MainActivity : AppCompatActivity() {
     val uriToSave = fileUri
 
     if (uriToSave != null && fileContent != previousContent) {
+      // disabled (no visible text/opacity change - that was flashing distractingly on fast
+      // saves) so a manual tap can't open a second concurrent write to the same file while
+      // the autosave write is still in flight
+      save_button.isEnabled = false
+
       autosaveExecutor.execute {
         try {
           contentResolver.openOutputStream(uriToSave)?.bufferedWriter().use { writer ->
@@ -395,12 +401,18 @@ class MainActivity : AppCompatActivity() {
           handler.post {
             previousContent = fileContent
             updateAsteriskVisibility()
+            resetSaveButton()
             debugI("Autosaved note")
           }
         } catch (e: IOException) {
           Log.e("MainActivity", "Autosave failed", e)
+          handler.post { resetSaveButton() }
         }
       }
     }
+  }
+
+  private fun resetSaveButton() {
+    save_button.isEnabled = true
   }
 }

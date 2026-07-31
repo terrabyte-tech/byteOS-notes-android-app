@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.terrabyte.byteosnotes"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.terrabyte.byteosnotes"
         minSdk = 24
-        targetSdk = 35
-        versionCode = 4
-        versionName = "1.3"
+        targetSdk = 36
+        versionCode = 5
+        versionName = "1.5"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
