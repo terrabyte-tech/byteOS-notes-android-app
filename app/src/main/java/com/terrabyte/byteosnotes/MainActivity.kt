@@ -22,14 +22,15 @@ import android.view.View
 import java.io.IOException
 import android.text.Editable
 import android.text.TextWatcher
+import java.util.concurrent.Executors
 
 
 class MainActivity : AppCompatActivity() {
 
-  // added auto save variabels
   private var autosaveRunnable: Runnable? = null
   private val autosaveDelay = 800L
-  private val handler = android.os.Handler(android.os.Looper.getMainLooper()) 
+  private val handler = android.os.Handler(android.os.Looper.getMainLooper())
+  private val autosaveExecutor = Executors.newSingleThreadExecutor()
 
 
 
@@ -97,7 +98,6 @@ class MainActivity : AppCompatActivity() {
       }
 
       override fun afterTextChanged(s: Editable?) {
-        //Added autosave
         autosaveRunnable?.let { handler.removeCallbacks(it) }
 
         autosaveRunnable = Runnable {
@@ -199,6 +199,14 @@ class MainActivity : AppCompatActivity() {
         }
       }
     }
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    // cancel any pending debounced autosave so it can't fire against a dead Activity,
+    // and stop accepting new autosave work
+    autosaveRunnable?.let { handler.removeCallbacks(it) }
+    autosaveExecutor.shutdown()
   }
 
 
@@ -343,23 +351,27 @@ class MainActivity : AppCompatActivity() {
   private fun debugE(msg: Exception){
     Log.w("System.err", msg)
   }
-  //ADDED autosaveNotes - andy 
+  //  runs the actual write on a background thread so a slow SAF provider (cloud-backed
+  //  documents, etc.) can't stall the UI thread every time the debounce timer fires
   private fun autosaveNote() {
     val fileContent = note_txtarea.text.toString()
+    val uriToSave = fileUri
 
-    if (fileUri != null && fileContent != previousContent) {
+    if (uriToSave != null && fileContent != previousContent) {
+      autosaveExecutor.execute {
         try {
-            contentResolver.openOutputStream(fileUri!!)?.bufferedWriter().use { writer ->
-                writer?.write(fileContent)
-            }
+          contentResolver.openOutputStream(uriToSave)?.bufferedWriter().use { writer ->
+            writer?.write(fileContent)
+          }
+          handler.post {
             previousContent = fileContent
             updateAsteriskVisibility()
-
             debugI("Autosaved note")
-
+          }
         } catch (e: IOException) {
-            Log.e("MainActivity", "Autosave failed", e)
+          Log.e("MainActivity", "Autosave failed", e)
         }
+      }
     }
   }
 }
